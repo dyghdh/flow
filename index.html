@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Touch Ripple Effect</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script id="vertexShader" type="x-shader/x-vertex">
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    </script>
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        uniform float time;
+        uniform vec2 resolution;
+        uniform vec2 mouse;
+
+        varying vec2 vUv;
+
+        void main() {
+            vec2 st = gl_FragCoord.xy / resolution.xy;
+            vec3 color = vec3(0.0);
+
+            vec2 toCenter = mouse - st;
+            float dist = length(toCenter) * 2.0;
+
+            float ripple = 0.1 / (dist + 0.1) * sin(10.0 * dist - time * 5.0);
+            color += vec3(ripple);
+
+            gl_FragColor = vec4(color, 1.0);
+        }
+    </script>
+    <script>
+        let container;
+        let camera, scene, renderer;
+        let uniforms;
+
+        init();
+        animate();
+
+        function init() {
+            container = document.createElement('div');
+            document.body.appendChild(container);
+
+            camera = new THREE.Camera();
+            camera.position.z = 1;
+
+            scene = new THREE.Scene();
+
+            const geometry = new THREE.PlaneBufferGeometry(2, 2);
+
+            uniforms = {
+                time: { value: 1.0 },
+                resolution: { value: new THREE.Vector2() },
+                mouse: { value: new THREE.Vector2(-10, -10) }  // Initialize off screen
+            };
+
+            const material = new THREE.ShaderMaterial({
+                uniforms: uniforms,
+                vertexShader: document.getElementById('vertexShader').textContent,
+                fragmentShader: document.getElementById('fragmentShader').textContent
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+
+            renderer = new THREE.WebGLRenderer();
+            container.appendChild(renderer.domElement);
+
+            onWindowResize();
+            window.addEventListener('resize', onWindowResize, false);
+            document.addEventListener('click', onMouseClick, false);
+        }
+
+        function onWindowResize(event) {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            uniforms.resolution.value.x = window.innerWidth;
+            uniforms.resolution.value.y = window.innerHeight;
+        }
+
+        function onMouseClick(event) {
+            const rect = renderer.domElement.getBoundingClientRect();
+            uniforms.mouse.value.x = (event.clientX - rect.left) / rect.width;
+            uniforms.mouse.value.y = 1 - (event.clientY - rect.top) / rect.height;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            render();
+        }
+
+        function render() {
+            uniforms.time.value += 0.05;
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
